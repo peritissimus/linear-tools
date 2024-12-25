@@ -1,4 +1,3 @@
-// src/cli/commands/initiatives.ts
 import { Command } from "commander";
 import { LinearService } from "@/services/linear";
 import { LLMService } from "@/services/llm";
@@ -25,8 +24,15 @@ export function initiativesCommand(
         return;
       }
 
-      initiatives.forEach((i) => {
-        console.log(`${i.id}: ${i.name} (${i.status})`);
-      });
+      const tableData = initiatives.map((i) => ({
+        ID: i.id,
+        Name: i.name,
+        Status: i.status,
+        Description:
+          i.description?.slice(0, 50) +
+            (i.description && i.description.length > 50 ? "..." : "") || "",
+      }));
+
+      console.table(tableData);
     });
 }
