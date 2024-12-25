@@ -33,14 +33,24 @@ export class LinearService {
     const issues = await this.getProjectIssues(projectId);
     const project = await this.getProject(projectId);
 
+    const issuesWithStates = await Promise.all(
+      issues.map(async (issue) => {
+        const state = await issue.state;
+        return {
+          ...issue,
+          state,
+        } as Issue & { state: typeof state };
+      }),
+    );
+
     const totalIssues = issues.length;
-    const completedIssues = issues.filter(
+    const completedIssues = issuesWithStates.filter(
       (i) => i.state?.type === "completed",
     ).length;
-    const blockedIssues = issues.filter(
+    const blockedIssues = issuesWithStates.filter(
       (i) => i.state?.type === "blocked",
     ).length;
-    const inProgressIssues = issues.filter(
+    const inProgressIssues = issuesWithStates.filter(
       (i) => i.state?.type === "started",
     ).length;
 
@@ -51,18 +61,21 @@ export class LinearService {
         blocked_rate: (blockedIssues / totalIssues) * 100,
         in_progress_rate: (inProgressIssues / totalIssues) * 100,
       },
-      risks: this.identifyProjectRisks(issues),
-      recommendations: this.generateRecommendations(issues, project),
+      risks: await this.identifyProjectRisks(issuesWithStates),
+      recommendations: await this.generateRecommendations(
+        issuesWithStates,
+        project,
+      ),
     };
   }
 
-  private identifyProjectRisks(issues: Issue[]) {
+  private async identifyProjectRisks(issues: (Issue & { state: any })[]) {
     const risks = [];
-
-    // Check overdue issues
     const overdueIssues = issues.filter(
       (i) => i.dueDate && new Date(i.dueDate) < new Date(),
     );
+    const blockedIssues = issues.filter((i) => i.state?.type === "blocked");
+
     if (overdueIssues.length > 0) {
       risks.push({
         type: "overdue_issues",
@@ -71,8 +84,6 @@ export class LinearService {
       });
     }
 
-    // Check blocked issues
-    const blockedIssues = issues.filter((i) => i.state?.type === "blocked");
     if (blockedIssues.length > 0) {
       risks.push({
         type: "blocked_issues",
@@ -84,15 +95,22 @@ export class LinearService {
     return risks;
   }
 
-  private generateRecommendations(issues: Issue[], project: Project) {
+  private async generateRecommendations(issues: Issue[], project: Project) {
     const recommendations = [];
 
+    // Get assignee names
+    const assignees = await Promise.all(
+      issues.map(async (issue) => {
+        const assignee = await issue.assignee;
+        return assignee?.name;
+      }),
+    );
+
     // Check workload distribution
-    const assigneeCounts = issues.reduce(
-      (acc, issue) => {
-        const assignee = issue.assignee?.name;
-        if (assignee) {
-          acc[assignee] = (acc[assignee] || 0) + 1;
+    const assigneeCounts = assignees.reduce(
+      (acc, name) => {
+        if (name) {
+          acc[name] = (acc[name] || 0) + 1;
         }
         return acc;
       },
@@ -107,9 +125,10 @@ export class LinearService {
     }
 
     // Check project progress
-    if (project.progress < 50 && project.targetDate) {
+    const targetDate = await project.targetDate;
+    if (project.progress < 50 && targetDate) {
       const daysUntilTarget = Math.ceil(
-        (new Date(project.targetDate).getTime() - new Date().getTime()) /
+        (new Date(targetDate).getTime() - new Date().getTime()) /
           (1000 * 60 * 60 * 24),
       );
 
