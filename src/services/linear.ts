@@ -19,6 +19,12 @@ export class LinearService {
     return await this.client.initiative(id);
   }
 
+  async getInitiativeProjects(initiativeId: string) {
+    const initiative = await this.client.initiative(initiativeId);
+    const projects = await initiative.projects();
+    return projects.nodes;
+  }
+
   async getProject(id: string): Promise<Project> {
     return await this.client.project(id);
   }

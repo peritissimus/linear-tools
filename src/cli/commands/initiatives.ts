@@ -10,7 +10,25 @@ export function initiativesCommand(
     .description("List and analyze initiatives")
     .option("-a, --analyze", "Analyze with LLM")
     .option("-j, --json", "Output as JSON")
+    .option("-p, --projects <id>", "Get projects for initiative ID")
     .action(async (opts) => {
+      if (opts.projects) {
+        const projects = await linear.getInitiativeProjects(opts.projects);
+        if (opts.json) {
+          console.log(JSON.stringify(projects, null, 2));
+          return;
+        }
+        console.table(
+          projects.map((p) => ({
+            ID: p.id,
+            Name: p.name,
+            Progress: `${p.progress}%`,
+            Status: p.state,
+          })),
+        );
+        return;
+      }
+
       const initiatives = await linear.listInitiatives();
 
       if (opts.analyze) {
