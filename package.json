@@ -14,12 +14,14 @@
   "description": "",
   "dependencies": {
     "@linear/sdk": "^37.0.0",
+    "axios": "^1.7.9",
     "commander": "^12.1.0",
     "dotenv": "^16.4.7",
     "openai": "^4.77.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.2"
   }
 }
