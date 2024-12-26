@@ -10,6 +10,26 @@ export class LinearService {
     this.client = new LinearClient({ apiKey: LINEAR_API_KEY });
   }
 
+  async analyzeDuplicateIssues() {
+    const projects = await this.client.projects();
+
+    const allIssues = [];
+    for (const project of projects.nodes) {
+      const issues = await project.issues();
+      allIssues.push(
+        ...issues.nodes.map((issue) => ({
+          id: issue.id,
+          title: issue.title,
+          description: issue.description,
+          projectId: project.id,
+          projectName: project.name,
+        })),
+      );
+    }
+
+    return allIssues;
+  }
+
   async listInitiatives(): Promise<Initiative[]> {
     const initiatives = await this.client.initiatives();
     return initiatives.nodes;
@@ -146,5 +166,35 @@ export class LinearService {
     }
 
     return recommendations;
+  }
+
+  async analyzeDependentIssues() {
+    const projects = await this.client.projects();
+
+    const allIssues = [];
+    for (const project of projects.nodes) {
+      const issues = await project.issues();
+      const issuesWithDetails = await Promise.all(
+        issues.nodes.map(async (issue) => {
+          const state = await issue.state;
+          const labels = await issue.labels();
+          return {
+            id: issue.id,
+            title: issue.title,
+            description: issue.description,
+            projectId: project.id,
+            projectName: project.name,
+            state: state?.name,
+            priority: issue.priority,
+            labels: labels.nodes.map((l) => l.name),
+            createdAt: issue.createdAt,
+            completedAt: issue.completedAt,
+          };
+        }),
+      );
+      allIssues.push(...issuesWithDetails);
+    }
+
+    return allIssues;
   }
 }
