@@ -15,6 +15,7 @@ export function projectsCommand(
     .option("-j, --json", "Output as JSON")
     .option("-d, --duplicates", "Analyze duplicate issues in Engineering team")
     .option("-dep, --dependencies", "Analyze dependencies between issues")
+    .option("-l, --list [id]", "List all issues in a project")
     .action(async (opts) => {
       try {
         if (opts.dependencies) {
@@ -23,6 +24,10 @@ export function projectsCommand(
         }
         if (opts.duplicates) {
           await handleDuplicatesAnalysis(linear, llm, opts);
+          return;
+        }
+        if (opts.list) {
+          await handleListIssues(linear, opts);
           return;
         }
         if (opts.health) {
@@ -36,6 +41,34 @@ export function projectsCommand(
       }
     });
 }
+
+async function handleListIssues(linear: LinearService, opts: any) {
+  if (typeof opts.list !== "string") {
+    console.error("Project ID is required for listing issues");
+    process.exit(1);
+  }
+
+  const issues = await linear.getProjectIssues(opts.list);
+
+  if (opts.json) {
+    console.log(JSON.stringify(issues, null, 2));
+    return;
+  }
+
+  console.log("\nProject Issues:");
+  console.table(
+    issues.map((issue) => ({
+      ID: issue.id,
+      Title: issue.title,
+      Priority: issue.priority,
+      DueDate: issue.dueDate
+        ? new Date(issue.dueDate).toLocaleDateString()
+        : "N/A",
+    })),
+  );
+}
+
+// ... rest of the file remains unchanged
 
 async function handleDependenciesAnalysis(
   linear: LinearService,
