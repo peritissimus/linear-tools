@@ -68,8 +68,6 @@ async function handleListIssues(linear: LinearService, opts: any) {
   );
 }
 
-// ... rest of the file remains unchanged
-
 async function handleDependenciesAnalysis(
   linear: LinearService,
   llm: LLMService,

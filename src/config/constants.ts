@@ -2,7 +2,7 @@
 export const API_CONFIG = {
   LINEAR_BASE_URL: "https://api.linear.app",
   OPENAI_BASE_URL: "https://api.openai.com/v1",
-  DEFAULT_MODEL: "gpt-4o",
+  DEFAULT_MODEL: "gpt-4o-mini",
 };
 
 export const CLI_CONFIG = {
