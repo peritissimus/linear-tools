@@ -197,4 +197,211 @@ export class LinearService {
 
     return allIssues;
   }
+
+  // Team-related methods
+  async listTeams() {
+    const teams = await this.client.teams();
+    return teams.nodes;
+  }
+
+  async getTeam(id: string) {
+    return await this.client.team(id);
+  }
+
+  async getTeamMembers(teamId: string) {
+    const team = await this.client.team(teamId);
+    const members = await team.members();
+    return members.nodes;
+  }
+
+  async getTeamProjects(teamId: string) {
+    const team = await this.client.team(teamId);
+    const projects = await team.projects();
+    return projects.nodes;
+  }
+
+  async getTeamCycles(teamId: string) {
+    const team = await this.client.team(teamId);
+    const cycles = await team.cycles();
+    return cycles.nodes;
+  }
+
+  // Cycle-related methods
+  async listActiveCycles() {
+    const { nodes } = await this.client.cycles({
+      filter: {
+        status: { in: ["active", "upcoming"] }
+      }
+    });
+    return nodes;
+  }
+  
+  async getCycle(id: string) {
+    return await this.client.cycle(id);
+  }
+  
+  async getCycleProjects(cycleId: string) {
+    const cycle = await this.client.cycle(cycleId);
+    const projects = await cycle.projects();
+    return projects.nodes;
+  }
+  
+  async getCycleIssues(cycleId: string, status?: string) {
+    const cycle = await this.client.cycle(cycleId);
+    let filter = {};
+    
+    if (status) {
+      filter = {
+        state: {
+          name: { eq: status }
+        }
+      };
+    }
+    
+    const issues = await cycle.issues({ filter });
+    return issues.nodes;
+  }
+  
+  async getCycleStats(cycleId: string) {
+    const cycle = await this.client.cycle(cycleId);
+    const issues = await cycle.issues();
+    const totalIssues = issues.nodes.length;
+    
+    // Process issues to get stats
+    const issuesWithStates = await Promise.all(
+      issues.nodes.map(async (issue) => {
+        const state = await issue.state;
+        return {
+          ...issue,
+          state,
+        };
+      })
+    );
+    
+    const completedIssues = issuesWithStates.filter(i => i.state?.type === "completed").length;
+    const inProgressIssues = issuesWithStates.filter(i => i.state?.type === "started").length;
+    const backlogIssues = issuesWithStates.filter(i => i.state?.type === "backlog" || i.state?.type === "unstarted").length;
+    
+    return {
+      totalIssues,
+      completedIssues,
+      inProgressIssues,
+      backlogIssues,
+      completionRate: totalIssues > 0 ? (completedIssues / totalIssues) * 100 : 0,
+      scopeChange: cycle.scopeChanges || 0
+    };
+  }
+  
+  async createCycle(data: {
+    teamId: string;
+    name: string;
+    startsAt: Date;
+    endsAt: Date;
+    description?: string;
+  }) {
+    const result = await this.client.createCycle({
+      teamId: data.teamId,
+      name: data.name,
+      startsAt: data.startsAt.toISOString(),
+      endsAt: data.endsAt.toISOString(),
+      description: data.description
+    });
+    
+    return result.cycle;
+  }
+]
 }
+
+
+  // Issue-related methods
+  async listIssues(filter: {
+    team?: string;
+    project?: string;
+    cycle?: string;
+    status?: string;
+    assignee?: string;
+  } = {}) {
+    const filterObj: any = {};
+    
+    if (filter.team) {
+      filterObj.team = {
+        id: { eq: filter.team }
+      };
+    }
+    
+    if (filter.project) {
+      filterObj.project = {
+        id: { eq: filter.project }
+      };
+    }
+    
+    if (filter.cycle) {
+      filterObj.cycle = {
+        id: { eq: filter.cycle }
+      };
+    }
+    
+    if (filter.status) {
+      filterObj.state = {
+        name: { eq: filter.status }
+      };
+    }
+    
+    if (filter.assignee) {
+      filterObj.assignee = {
+        id: { eq: filter.assignee }
+      };
+    }
+    
+    const { nodes } = await this.client.issues({
+      filter: Object.keys(filterObj).length > 0 ? filterObj : undefined,
+      first: 100
+    });
+    
+    return nodes;
+  }
+  
+  async getIssue(idOrKey: string) {
+    // Check if it's a full identifier (e.g., ENG-123) or just an ID
+    if (idOrKey.includes('-')) {
+      return await this.client.issue(idOrKey);
+    } else {
+      return await this.client.issue(idOrKey);
+    }
+  }
+  
+  async createIssue(data: {
+    title: string;
+    teamId: string;
+    description?: string;
+    projectId?: string;
+    cycleId?: string;
+    assigneeId?: string;
+    priority?: number;
+    stateId?: string;
+    parentId?: string;
+    dueDate?: string;
+  }) {
+    const result = await this.client.createIssue(data);
+    return result.issue;
+  }
+  
+  async updateIssueState(issueId: string, stateId: string) {
+    const result = await this.client.updateIssue(issueId, {
+      stateId: stateId
+    });
+    
+    return result.issue;
+  }
+  
+  async createProject(data: {
+    name: string;
+    teamId: string;
+    description?: string;
+    state?: string;
+    targetDate?: string;
+    cycleId?: string;
+  }) {
+    const result = await this.client.createProject(data);
+    return result.project;
+  }

@@ -227,3 +227,55 @@ export class LLMService {
     return response.choices[0].message.content || "";
   }
 }
+
+  async generateIssues(data: {
+    projectName: string;
+    projectDescription: string;
+    prompt: string;
+    existingIssues: string[];
+    count: number;
+  }): Promise<Array<{
+    title: string;
+    description: string;
+    priority: number;
+  }>> {
+    const response = await this.client.chat.completions.create({
+      model: API_CONFIG.DEFAULT_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert at creating well-structured project issues. 
+          Based on the project context and user's prompt, generate ${data.count} issues that:
+          1. Are clearly titled and described
+          2. Include enough detail for implementation
+          3. Have appropriate priority (1: Urgent, 2: High, 3: Medium, 4: Low)
+          4. Don't duplicate existing issues
+          
+          Format output as JSON with structure:
+          [
+            {
+              "title": string, // Short, clear title
+              "description": string, // Detailed markdown description
+              "priority": number // 1-4 with 1 being highest
+            }
+          ]
+          
+          Project Context:
+          - Name: ${data.projectName}
+          - Description: ${data.projectDescription || 'No description available.'}
+          
+          Existing Issues:
+          ${data.existingIssues.map(title => `- ${title}`).join('\n')}`,
+        },
+        {
+          role: "user",
+          content: data.prompt,
+        },
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    return result.issues || [];
+  }
